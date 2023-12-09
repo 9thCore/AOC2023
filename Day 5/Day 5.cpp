@@ -1,137 +1,199 @@
 #include <iostream>
 #include <fstream>
-#include <regex>
-#include <vector>
-#include <functional>
-std::ifstream fin("input.txt");
+#include <string>
+#include <list>
+#include <sstream>
 
-void match(std::string s, std::regex r, std::function<void(std::string)> f) {
-	std::sregex_iterator begin = std::sregex_iterator(s.begin(), s.end(), r);
-	std::sregex_iterator end = std::sregex_iterator();
-
-	for (std::sregex_iterator i = begin; i != end; i++) {
-		f((*i).str());
-	}
-}
-
-bool trymap(int64_t&num, int64_t dest, int64_t source, int64_t length) {
-	int64_t sourceend = source + length - 1;
-	if (num < source || num > sourceend) {
-		return false;
-	}
-
-	num = num - source + dest;
-	return true;
-}
-
-struct plant {
-	int64_t num = 0;
-	bool mappped = false;
+enum RANGEMATCH {
+	NONE = 0,
+	PARTIALLEFT = 1,
+	PARTIALRIGHT = 2,
+	FULL = 3,
+	BIGGER = 4
 };
 
-void part1()
-{
-	std::vector<plant> plants;
+int guid = 0;
+struct range {
+	long long start = 0;
+	long long length = 0;
+	bool mapped = false;
+	int id = 0;
+
+	range(long long s, long long l) {
+		start = s;
+		length = l;
+		id = guid++;
+	}
+
+	long long end() {
+		return start + length - 1;
+	}
+	
+	RANGEMATCH match(range r) {
+		long long as = start, ae = end();
+		long long bs = r.start, be = r.end();
+
+		if (as >= bs && ae <= be) {
+			return RANGEMATCH::FULL;
+		}
+		else if (as < bs && ae > be) {
+			return RANGEMATCH::BIGGER;
+		}
+		else if (as < bs && ae >= bs && ae <= be) {
+			return RANGEMATCH::PARTIALLEFT;
+		}
+		else if (ae > be && as >= bs && as <= be) {
+			return RANGEMATCH::PARTIALRIGHT;
+		}
+		
+		return RANGEMATCH::NONE;
+	}
+
+	range subrange(int pos, int len) {
+		range r(start + pos, len);
+		return r;
+	}
+
+	std::string tostring() {
+		std::string s;
+		s += std::to_string(start);
+		s += '-';
+		s += std::to_string(end());
+		return s;
+	}
+};
+
+void part1(std::ifstream& fin) {
+	long long x, y, z;
+	std::list<range> ranges;
 	std::string line;
 
+	// seeds
+	std::getline(fin, line, ':');
 	std::getline(fin, line);
+	std::istringstream s(line);
+	while (s >> x) {
+		ranges.push_back({ x, 1 });
+	}
 
-	match(line, std::regex("\\b(\\d+)\\b"), [&](std::string s) {
-		plants.push_back({ std::stoll(s), false });
-		});
-
-	int64_t inputs[3] = { 0 };
+	// rest
 	while (std::getline(fin, line)) {
 		if (line.empty()) {
-			for (plant &p : plants) {
-				p.mappped = false;
+			for (range& range : ranges) {
+				range.mapped = false;
 			}
 			continue;
 		}
 
-		int k = 0;
-		match(line, std::regex("\\b(\\d+)\\b"), [&](std::string s) {
-			inputs[k++] = std::stoll(s);
-			});
+		std::istringstream s(line);
+		if (!(s >> x >> y >> z)) { continue; }
 
-		if (k == 0) { continue; }
+		range source(y, z);
+		range dest(x, z);
 
-		for (plant &p : plants) {
-			if (!p.mappped && trymap(p.num, inputs[0], inputs[1], inputs[2])) {
-				p.mappped = true;
+		for (range &r : ranges) {
+			if (r.mapped) { continue; }
+
+			RANGEMATCH match = r.match(source);
+			if (match == RANGEMATCH::FULL) {
+				r.start = r.start - source.start + dest.start;
+				r.mapped = true;
 			}
 		}
 	}
 
-	int64_t lowest = LLONG_MAX;
-	for (int i = 0; i < plants.size(); i++) {
-		lowest = std::min(lowest, plants[i].num);
+	long long lowest = LLONG_MAX;
+	for (range& r : ranges) {
+		lowest = std::min(lowest, r.start);
 	}
 
 	std::cout << "Part 1: " << lowest << "\n";
 }
 
-struct range {
-	long long start;
-	long long length;
-};
-
-void part2() {
-	std::vector<plant> plants;
+void part2(std::ifstream& fin) {
+	long long x, y, z;
+	std::list<range> ranges;
 	std::string line;
 
+	// seeds
+	std::getline(fin, line, ':');
 	std::getline(fin, line);
+	std::istringstream s(line);
+	while (s >> x >> y) {
+		ranges.push_back({ x, y });
+	}
 
-	int last = -1;
-	bool state = 0;
-	match(line, std::regex("\\b(\\d+)\\b"), [&](std::string s) {
-		state = !state;
-		if (state) {
-			last = std::stoll(s);
-		}
-		else {
-			for (int64_t i = 0; i < std::stoll(s); i++) {
-				plants.push_back({ last + i, false });
-			}
-		}
-		});
-
-	int64_t inputs[3] = { 0 };
+	// rest
 	while (std::getline(fin, line)) {
 		if (line.empty()) {
-			for (plant& p : plants) {
-				p.mappped = false;
+			for (range& range : ranges) {
+				range.mapped = false;
 			}
 			continue;
 		}
 
-		int k = 0;
-		match(line, std::regex("\\b(\\d+)\\b"), [&](std::string s) {
-			inputs[k++] = std::stoll(s);
-			});
+		std::istringstream s(line);
+		if (!(s >> x >> y >> z)) { continue; }
 
-		if (k == 0) { continue; }
+		range source(y, z);
+		range dest(x, z);
 
-		for (plant& p : plants) {
-			if (!p.mappped && trymap(p.num, inputs[0], inputs[1], inputs[2])) {
-				p.mappped = true;
+		for (range& r : ranges) {
+			if (r.mapped) { continue; }
+
+			RANGEMATCH match = r.match(source);
+			if (match == RANGEMATCH::FULL) {
+				r.start = r.start - source.start + dest.start;
+				r.mapped = true;
+			}
+			else if (match == RANGEMATCH::PARTIALLEFT) {
+				range sub = r.subrange(0, source.start - r.start);
+				r.length -= sub.length;
+				r.start += sub.length;
+				r.mapped = true;
+				range predest = r;
+
+				r.start = r.start - source.start + dest.start;
+				ranges.push_back(sub);
+			}
+			else if (match == RANGEMATCH::PARTIALRIGHT) {
+				range sub = r.subrange(source.end() - r.start + 1, r.end() - source.end());
+				r.length -= sub.length;
+				r.mapped = true;
+				range predest = r;
+
+				r.start = r.start - source.start + dest.start;
+				ranges.push_back(sub);
+			}
+			else if (match == RANGEMATCH::BIGGER) {
+				range sub1 = r.subrange(0, source.start - r.start);
+				range sub2 = r.subrange(r.length - r.end() + source.end(), r.end() - source.end());
+				r.length -= sub1.length + sub2.length;
+				r.start += sub1.length;
+				r.mapped = true;
+				range predest = r;
+
+				r.start = r.start - source.start + dest.start;
+				ranges.push_back(sub1);
+				ranges.push_back(sub2);
 			}
 		}
 	}
 
-	int64_t lowest = LLONG_MAX;
-	for (int i = 0; i < plants.size(); i++) {
-		lowest = std::min(lowest, plants[i].num);
+	long long lowest = LLONG_MAX;
+	for (range& range : ranges) {
+		lowest = std::min(lowest, range.start);
 	}
 
 	std::cout << "Part 2: " << lowest << "\n";
 }
 
 int main() {
-	part1();
+	std::ifstream fin("input.txt");
+	part1(fin);
 
-	fin = std::ifstream("input.txt");
-	part2();
+	std::ifstream fin2("input.txt");
+	part2(fin2);
 
 	return 0;
 }
