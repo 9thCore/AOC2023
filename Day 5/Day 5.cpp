@@ -151,7 +151,6 @@ void part2(std::ifstream& fin) {
 				r.length -= sub.length;
 				r.start += sub.length;
 				r.mapped = true;
-				range predest = r;
 
 				r.start = r.start - source.start + dest.start;
 				ranges.push_back(sub);
@@ -160,7 +159,6 @@ void part2(std::ifstream& fin) {
 				range sub = r.subrange(source.end() - r.start + 1, r.end() - source.end());
 				r.length -= sub.length;
 				r.mapped = true;
-				range predest = r;
 
 				r.start = r.start - source.start + dest.start;
 				ranges.push_back(sub);
@@ -171,7 +169,6 @@ void part2(std::ifstream& fin) {
 				r.length -= sub1.length + sub2.length;
 				r.start += sub1.length;
 				r.mapped = true;
-				range predest = r;
 
 				r.start = r.start - source.start + dest.start;
 				ranges.push_back(sub1);
